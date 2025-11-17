@@ -1,0 +1,18 @@
+---
+title: "Untitled"
+format: pdf
+editor: visual
+---
+
+## The PDB database
+
+The main repository for biomolecular structure data is the Protein Data Bank (PDB) <https://www.rcsb.org/>
+
+Let's have a quick look at the composition of this database:
+
+> **Q1:** What percentage of structures in the PDB are solved by X-Ray and Electron Microscopy
+>
+> ```{r}
+> stats<-read.csv("Data Export Summary.csv")
+> stats
+> ```

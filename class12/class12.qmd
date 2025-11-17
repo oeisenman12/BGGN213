@@ -1,0 +1,246 @@
+---
+title: "class12:RNASeq"
+author: "Osirus Eisenman"
+format: html
+editor: visual
+toc: true 
+---
+
+## Background 
+
+Today we will analyze some RNASeq data from Himes et al. on the effects of a common steroid (dex...) on the airway smoot muscle cells (ASMs).
+
+For this analysis we need two main inputs:
+
+\-`contData`: a table of **counts** per gene (in rows) accross experiments (in columns)
+
+\-`colData`: **metadata** about the design of the experiments. The rows here must match the columns in `countData`
+
+## Data Import
+
+```{r}
+counts<-read.csv("airway_scaledcounts.csv",row.names=1)
+metadata<-read.csv("airway_metadata.csv")
+```
+
+## Let's have a wee peak at our `counts` data
+
+```{r}
+head(counts)
+```
+
+and the `metadat`
+
+```{r}
+metadata
+```
+
+> Q1. How many transcripts "genes" are in this dataset?
+>
+> A. 38694 genes
+>
+> ```{r}
+> nrow(counts)
+> ```
+
+> Q2. How many experiments (i.e. columns in `counts` or rows in `metadata` are there
+>
+> A. 8
+
+```{r}
+ncol(counts)
+```
+
+> Q3. How many "control experiments are there in the dataset?
+>
+> A. 4
+
+```{r}
+sum(metadata$dex =="control")
+```
+
+## Toy Analysis Example 
+
+1.  Extract the "control" columns from `counts`
+2.  Calculate the mean value for each gene in these "control" columns
+
+3-4. Do the same for the "treated" columns
+
+5.  Compare these mean values for each gene
+
+Step 1:
+
+```{r}
+control.inds<-metadata$dex =="control"
+control.counts<-counts[,control.inds]
+```
+
+Step 2:
+
+```{r}
+control.mean<-rowMeans(control.counts)
+```
+
+Step 3-4:
+
+```{r}
+treated.mean<-rowMeans(counts[metadata$dex=="treated"])
+```
+
+For ease of book-keeping we can store these together in one data frame called `meancounts`
+
+```{r}
+meancounts<-data.frame(control.mean,treated.mean)
+head(meancounts)
+```
+
+Step 5: Now plot these against each other:
+
+```{r}
+ggplot()+
+    aes(x=control.mean,y=treated.mean)+
+    geom_point(alpha=0.1,color="purple")
+  
+```
+
+We use log10 "fold-change" as a way to compare:
+
+```{r}
+# Treated/contol 
+ggplot()+
+    aes(x=control.mean,y=treated.mean)+
+    geom_point(alpha=0.1,color="purple")+
+    scale_x_log10() +               
+    scale_y_log10() 
+```
+
+Log2 "fold-change"
+
+```{r}
+meancounts$log2fc<-
+  log2(meancounts$treated.mean/meancounts$control.mean)
+
+head(meancounts)
+```
+
+A common "rule-of-thumb" threshold for calling something "up" regulated is a log2-fold-change of +2 or greater. For down regulated -2 or less.
+
+```{r}
+#Alternate method find zero values
+nonzero_inds<-rowSum(counts)!=0
+mycounts<-meancounts[nonzero_inds]
+
+zero_inds<-which(meancounts[,1:2]==0,arr.ind=T)[,1]
+mygenes<-meancounts[-zero_inds,]
+```
+
+> Q4. How many genes are "up" regulated at the +2 log2FC threshold
+>
+> A. 314
+>
+> ```{r}
+> sum(mygenes$log2fc>=2)
+>
+> ```
+
+> Q5. How many genes are "down" regulated (at the -2 log 2FC threshold)?
+>
+> A. 21450
+>
+> ```{r}
+> sum(mygenes$log2fc>=-2)
+> ```
+
+## DESeq Analysis:
+
+Let's do this with DESeq2 and put some stats behind these numbers.
+
+```{r,message=FALSE}
+library(Deseq2)
+```
+
+DESeq wants 3 things for analysis: countData, colData, and design.
+
+```{r}
+dds<-DESeqDataSetFromMatrix(countData=counts,
+                            colData=metadata,
+                            design=~dex)
+```
+
+The main function in the DESeq package to run analysis is called `DESeq()`.
+
+```{r}
+dds<-DESeq(dds)
+```
+
+Get the results out of this DESeq object with the function `results()`.
+
+```{r}
+res<-results(dds)
+head(res)
+```
+
+"If you torture your data for long enough, it's going to confess"
+
+ - Barry Grant 11/07/2025
+
+## Volcano Plot
+
+This is a plot of log2FC vs adjusted p-value (padj)
+
+```{r}
+plot(res$log2FoldChange,-log(res$padj))
+abline(v=c(-2,2),col="purple")
+abline(h=-log(0.05),col="purple")
+```
+
+## A Nicer GGPLOT Volcano Plot
+
+Let's make a ggplot of the previous graph just to clean it up
+
+```{r}
+mycols<-rep("purple",nrow(res))
+mycols[abs(res$log2FoldChange)>2]<-"blue"
+mycols[res$padj>=0.05]<-"purple"
+
+ggplot(res)+
+  aes(x=log2FoldChange,y=-log(padj))+
+  geom_point(alpha=0.1, col=mycols)+
+     geom_vline(xintercept = -2,
+             linetype = "dashed",
+             colour  = "darkred",
+             size    = 0.8) +
+  geom_vline(xintercept =  2,
+             linetype = "dashed",
+             colour  = "darkred",
+             size    = 0.8) +
+  geom_hline(yintercept = -log(0.05),
+             linetype = "dashed",
+             colour  = "darkred",
+             size    = 0.8))
+             
+
+```
+
+```{r}
+# colour vector
+mycols <- rep("purple", nrow(res))
+mycols[abs(res$log2FoldChange) > 2] <- "blue"
+mycols[res$padj >= 0.05] <- "purple"  
+
+ggplot(res) +
+  aes(x = log2FoldChange, y = -log10(padj)) +
+  geom_point(alpha = 0.1, colour = mycols) +
+  geom_vline(xintercept = -2, linetype = "dashed",
+             colour = "darkred", size = 0.8) +
+  geom_vline(xintercept =  2, linetype = "dashed",
+             colour = "darkred", size = 0.8) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed",
+             colour = "darkred", size = 0.8)
+```
+
+## Save our Results
+
+```{r}
+write.csv(res,file="my_results.csv")
+```

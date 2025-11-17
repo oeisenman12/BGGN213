@@ -1,0 +1,202 @@
+---
+title: "class05: Data Viz with GGPLOT"
+author: "Osirus Eisenman"
+format: pdf
+---
+Today we are playing with plotting and graphics in R.
+
+There are lots of ways to make cool figures in R.
+
+There is "base" R graphics (`plot()`,`hist()`,`boxplot()`etc.)
+
+There is also add-onn packages, like **ggplot**
+
+```{r}
+head(cars,3)
+
+```
+
+Let's plot this with "base" R:
+
+```{r}
+plot(cars)
+```
+
+```{r}
+head(mtcars)
+```
+
+Let's plot `mpg` vs `disp`
+
+```{r}
+plot (mtcars$mpg,mtcars$disp,pch=16)
+```
+
+```{r}
+hist(mtcars$mpg)
+```
+
+##GGPLOT
+
+The main function in the ggplot2 package is **ggplot**.First I need to install the **ggplot2** package. I can install any package with the function `install.package()`
+
+> **N.B.** I never want to run `install.packages()` in my quarto source document!!!
+
+```{r}
+library(ggplot2)
+ggplot(cars) + 
+  aes(x=speed,y=dist) +
+  geom_point()
+```
+
+```{r}
+ggplot(cars)+
+  aes(speed)+
+  geom_histogram()
+```
+
+Every ggplot needs at least 3 things:
+
+-The **data** (given the `ggplot(cars)`)
+-The **aesthetic** mapping (given with `aes(x=_,y=_)`)
+-The **geom** (given by `geom_point()`)
+
+>For simple canned plots "base" R is nearly always faster in execution. 
+>GGPLOT's layered approach allows you to tailor your graphs for every situation 
+
+### Adding more layers:
+
+Let's add a line
+```{r}
+ggplot(cars) + 
+  aes(x=speed,y=dist) +
+  geom_point() + 
+  geom_smooth()
+```
+What about a linear line?
+
+```{r}
+ggplot(cars) + 
+  aes(x=speed,y=dist) +
+  geom_point() + 
+  geom_smooth(method="lm", se=FALSE)
+```
+
+Let's add a title, subtitle, and caption as well as custom axis labels
+
+```{r}
+ggplot(cars) + 
+  aes(x=speed,y=dist) +
+  geom_point() + 
+  geom_smooth(method="lm", se=FALSE) +
+  labs(title="Silly Plot",
+       x="Speed (MPH)",
+       y="Distance (ft)",
+       caption= "when is tea time anyways?")+
+  theme_linedraw()
+```
+
+## Plot some expresion data
+
+```{r}
+url <- "https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt"
+genes <- read.delim(url)
+head(genes)
+```
+
+>Q1. How many geges are in this wee dataset?
+
+There are `r nrow(genes)` in this dataset
+
+```{r}
+nrow(genes)
+```
+
+>Q2. How many "up" regulated genes are there?
+
+```{r}
+sum(genes$State== "up")
+```
+
+There are `r sum(genes$State== "up")` up-regulated genes
+
+```{r}
+table(genes$State)
+```
+
+## To alter color of data points, put "col="blue"" in the geom_point instead of aes()
+
+```{r}
+p<-ggplot(genes) + 
+    aes(x=Condition1, y=Condition2, col=State) +
+    geom_point()+
+  scale_color_manual(values=c("purple","orange","red"))
+  
+```
+
+```{r}
+p+ labs(title="look at me")
+```
+
+Silly example of adding labels
+
+```{r}
+library(ggrepel)
+ggplot(genes) + 
+    aes(x=Condition1, y=Condition2, col=State,label=Gene) +
+    geom_point()+
+  scale_color_manual(values=c("purple","orange","red"))+
+  geom_text_repel(max.overlaps=60)+
+  theme_bw()
+```
+
+```{r}
+library(ggrepel)
+ggplot(genes) + 
+    aes(x=Condition1, y=Condition2, col=State) +
+    geom_point()+
+  scale_color_manual(values=c("purple","orange","red"))
+```
+
+## Going Further 
+
+Playing with some different layers and the gapminder dataset...
+
+```{r}
+# File location online
+url <- "https://raw.githubusercontent.com/jennybc/gapminder/master/inst/extdata/gapminder.tsv"
+
+gapminder <- read.delim(url)
+```
+
+```{r}
+head(gapminder)
+```
+
+```{r}
+tail(gapminder)
+```
+
+```{r}
+ggplot(gapminder)+
+  aes(x=gdpPercap,
+      y=lifeExp,
+      col=continent)+
+  geom_point()+
+  facet_wrap(~continent)
+```
+
+```{r}
+ggplot(gapminder)+
+  aes(x=gdpPercap
+,y=lifeExp,col=continent)+
+  geom_point()
+```
+
+```{r}
+ggplot(gapminder)+
+  aes(x=continent,y=pop)+
+  geom_bar()
+```
+
+
